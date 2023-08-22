@@ -2,27 +2,32 @@ import PropTypes from 'prop-types';
 import css from './ImageGallery.module.css';
 import { ImageGalleryItem } from 'components/ImageGalleryItem/ImageGalleryItem';
 
-export const ImageGallery = ({ imgs, openModal }) => {
+export const ImageGallery = ({ galleryItems, openModal }) => {
   return (
-    <>
-      <ul className={css.imageGallery}>
-        {imgs.map(el => {
-          return (
+    galleryItems.length > 0 && (
+      <ul className={css.ImageGallery}>
+        {galleryItems.map(item => (
+          <li
+            key={item.id}
+            className={css.ImageGalleryItem}
+            onClick={() => openModal(item)}
+          >
             <ImageGalleryItem
-              key={el.id}
-              id={el.id}
-              url={el.webformatURL}
-              tags={el.tags}
-              openModal={openModal}
-            />
-          );
-        })}
+              webformaturl={item.webformatURL}
+              tags={item.tags}
+            ></ImageGalleryItem>
+          </li>
+        ))}
       </ul>
-    </>
+    )
   );
 };
 
 ImageGallery.propTypes = {
-  imgs: PropTypes.array.isRequired,
+  galleryItems: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+    })
+  ),
   openModal: PropTypes.func.isRequired,
 };

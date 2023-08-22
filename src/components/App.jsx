@@ -4,87 +4,94 @@ import { RequestServer } from '../pixabayAPI';
 
 import { Searchbar } from './Searchbar/Searchbar';
 import { ImageGallery } from './ImageGallery/ImageGallery';
-import { BtnLoadMore } from './Button/Button';
+import { Button } from './Button/Button';
 import { Loader } from './Loader/Loader';
 import { Modal } from './Modal/Modal';
 
-const requestServer = new RequestServer();
 export class App extends Component {
   state = {
-    imgs: [],
-    totalHits: 0,
+    query: '',
     page: 1,
-    value: '',
-    stateLoader: false,
-    stateModal: false,
-    modalImg: '',
-    error: null,
+    galleryItems: [],
+    totalItems: 0,
+    isLoading: false,
+    showModal: false,
+    modalImg: {
+      url: '',
+      alt: '',
+    },
   };
 
-  resetState = () => {
-    this.setState({ imgs: [], totalHits: 0, page: 1, value: '', error: null });
-  };
-
-  arraySearchImg = async (value = this.state.value) => {
-    this.setState({ stateLoader: true });
-
-    try {
-      const {
-        data: { hits, totalHits },
-      } = await requestServer.searchImg(value, this.state.page);
-      if (totalHits === 0) {
-        this.setState({ error: 'No images found!' });
+  async componentDidUpdate(_, prevState) {
+    const { query, page, galleryItems } = this.state;
+    if (prevState.query !== query || prevState.page !== page) {
+      try {
+        this.setState({ isLoading: true });
+        const data = await RequestServer(query, page);
+        this.setState({
+          galleryItems: [...galleryItems, ...data.hits],
+          totalItems: data.totalHits,
+        });
+      } catch (error) {
+        this.setState({ error });
+      } finally {
+        this.setState({ isLoading: false });
       }
-      this.setState(prevState => {
-        return {
-          imgs: [...prevState.imgs, ...hits],
-          totalHits,
-          page: this.state.page + 1,
-          value,
-        };
-      });
-    } catch (er) {
-      console.log(er.message);
-      this.setState({ error: er.message });
-    } finally {
-      this.setState({ stateLoader: false });
     }
+  }
+
+  handleSearch = query => {
+    if (this.state.query === query) {
+      return alert(`You are alredy watching "${query}" category`);
+    }
+
+    this.setState({
+      query: query.toLowerCase(),
+      galleryItems: [],
+      page: 1,
+    });
   };
 
-  openModal = ({ currentTarget: { id } }) => {
-    const imgModal = this.state.imgs.find(hit => hit.id === Number(id));
-    this.setState({ modalImg: imgModal, stateModal: true });
+  handleLoadmoreImages = () => {
+    this.setState({
+      page: this.state.page + 1,
+    });
+  };
+
+  openModal = item => {
+    this.setState(prevState => ({
+      showModal: true,
+      modalImg: {
+        url: item.largeImageURL,
+        alt: item.tags,
+      },
+    }));
   };
 
   closeModal = () => {
-    this.setState({ stateModal: false });
+    this.setState(prevState => ({
+      showModal: false,
+      modalImg: {},
+    }));
   };
 
   render() {
-    const { imgs, stateLoader, totalHits, page, stateModal, modalImg, error } =
+    const { galleryItems, totalItems, isLoading, showModal, modalImg } =
       this.state;
-    const { resetState, arraySearchImg, openModal, closeModal } = this;
-
     return (
-      <div className={css.app}>
-        <Searchbar
-          resetState={resetState}
-          arraySearchImg={arraySearchImg}
-        ></Searchbar>
-
-        {error ? (
-          <h2>{error}</h2>
-        ) : (
-          <ImageGallery imgs={imgs} openModal={openModal} />
+      <div className={css.App}>
+        <Searchbar onSubmit={this.handleSearch}></Searchbar>
+        <ImageGallery
+          galleryItems={galleryItems}
+          openModal={this.openModal}
+        ></ImageGallery>
+        {isLoading && <Loader />}
+        {totalItems > galleryItems.length && (
+          <Button onClick={this.handleLoadmoreImages}></Button>
         )}
-
-        {stateLoader && <Loader />}
-
-        {totalHits / 12 > page - 1 && (
-          <BtnLoadMore arraySearchImg={arraySearchImg} />
+        {showModal && (
+          <Modal modalImg={modalImg} closeModal={this.closeModal} />
         )}
-
-        {stateModal && <Modal modalImg={modalImg} closeModal={closeModal} />}
       </div>
     );
   }
